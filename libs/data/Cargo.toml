@@ -1,0 +1,15 @@
+[package]
+name = "athena-data"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+eyre = "0.6.12"
+include_dir = "0.7.4"
+serde = { version = "1.0.210", features = ["derive"] }
+surrealdb = { version = "2.0.4" }
+surrealdb-migrations = "2.0.0"
+thiserror = "1.0.64"
+tokio = { version = "1.40.0", features = ["process"] }
+tracing = "0.1.40"
