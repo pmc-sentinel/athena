@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::process::Stdio;
+use std::{fs::File, process::Stdio, io::prelude::*};
 use surrealdb::{engine::remote::ws::Client, sql::Thing, Surreal};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -29,6 +29,10 @@ impl Server {
         format!("/var/lib/athena/profiles/{}", self.id)
     }
 
+    pub fn logs_path(&self) -> String {
+        format!("/var/log/athena/{}", self.id)
+    }
+
     pub fn launch_args(&self) -> Vec<String> {
         let mut args = vec![
             String::from("-name=main"),
@@ -46,6 +50,9 @@ impl Server {
     }
 
     pub async fn install_update(&self, username: String, password: String) {
+        std::fs::create_dir_all(self.logs_path()).expect("Couldn't create logs directory");
+        let mut log_file = File::create(format!("{}/steamcmd.log", self.logs_path())).expect("Couldn't create logs file");
+
         let mut cmd = Command::new("/home/hayden/Steam/steamcmd.sh");
         cmd.arg("+force_install_dir");
         cmd.arg(self.install_path());
@@ -55,6 +62,7 @@ impl Server {
         cmd.arg("+app_update");
         cmd.arg("233780");
         cmd.arg("validate");
+        cmd.arg("+quit");
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
@@ -70,11 +78,12 @@ impl Server {
         });
 
         while let Some(line) = reader.next_line().await.expect("failed to read logs") {
-            tracing::info!("steamcmd({}): {}", self.id, line);
+            log_file.write_all(format!("{}\n",line).as_bytes()).expect("Couldn't write lines to log");
         }
     }
 
     pub async fn launch(&self) {
+        let mut log_file = File::create(format!("{}/server.log", self.logs_path())).expect("Couldn't create logs file");
         let mut cmd = Command::new("./arma3server_x64");
         cmd.current_dir(self.install_path());
         cmd.args(self.launch_args());
@@ -94,7 +103,7 @@ impl Server {
         });
 
         while let Some(line) = reader.next_line().await.expect("failed to read logs") {
-            tracing::info!("arma3server({}): {}", self.id, line);
+            log_file.write_all(format!("{}\n",line).as_bytes()).expect("Couldn't write lines to log");
         }
     }
 }
